@@ -58,6 +58,9 @@ const detectEmotion = async (imageDataUrl) => {
     }
   });
 
+  // save response in localstorage
+  localStorage.setItem('emotion', emotionResponse.data.emotion);
+  // console.log(emotionResponse.data.emotion);
   return emotionResponse.data.emotion; // the API returns an object with an 'emotion' property
 };
 // Utility function to get a random element from an array
@@ -147,43 +150,3 @@ export const fetchRecommendations = () => {
     }
   };
 };
-
-// import spotifyAxios from '../../axios/spotify';
-
-// const fetchRecommendationsPending = () => ({
-//   type: 'FETCH_RECOMMENDATIONS_PENDING'
-//   });
-  
-//   const fetchRecommendationsSuccess = data => ({
-//   type: 'FETCH_RECOMMENDATIONS_SUCCESS',
-//   data
-//   });
-  
-//   const fetchRecommendationsError = error => ({
-//   type: 'FETCH_RECOMMENDATIONS_ERROR',
-//   error
-//   });
-  
-//   export const fetchRecommendations = () => {
-//   return async (dispatch, getState) => {
-//   dispatch(fetchRecommendationsPending());
-  
-//   const token = getState().sessionReducer.token;
-  
-//   try {
-//     const response = await spotifyAxios.get('/recommendations', {
-//       headers: {
-//         'Authorization': `Bearer ${token}`
-//       },
-//       params: {
-//         seed_genres: 'pop',
-//         target_energy: 0.9,
-//         target_valence: 0.9
-//       }
-//     });
-//     dispatch(fetchRecommendationsSuccess(response.data.tracks)); // Ensure the correct property
-//   } catch (error) {
-//     dispatch(fetchRecommendationsError(error));
-//   }
-//   };
-//   };
