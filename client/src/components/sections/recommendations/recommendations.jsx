@@ -23,7 +23,7 @@ const Recommendations = ({ recommendations, fetchRecommendations, loading, error
       <div className="recommendations-section">
         <div className="header">
           <Header
-            title="Recommendations"
+            title="Emotion-based Recommendations"
             playSong={() => playTracks(recommendations, 0)}
             pauseSong={() => {}}
             playing={false}
