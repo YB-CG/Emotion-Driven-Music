@@ -28,9 +28,16 @@ const captureImage = async () => {
         video.srcObject = stream;
         video.play();
         video.addEventListener('loadeddata', () => {
+          // Set canvas size to match video dimensions
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          // Draw the video frame to the canvas
           context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          // Stop the video stream
           video.srcObject.getTracks().forEach(track => track.stop());
-          canvas.toBlob(resolve);
+          // Convert the canvas to a data URL (base64 string)
+          const imageDataUrl = canvas.toDataURL('image/png');
+          resolve(imageDataUrl);
         });
       })
       .catch(reject);
@@ -38,19 +45,21 @@ const captureImage = async () => {
 };
 
 // Function to send the captured image to the emotion detection API
-const detectEmotion = async (imageBlob) => {
+const detectEmotion = async (imageDataUrl) => {
   const formData = new FormData();
-  formData.append('image', imageBlob);
+  // Convert data URL to Blob
+  const response = await fetch(imageDataUrl);
+  const blob = await response.blob();
+  formData.append('image', blob, 'image.png');
 
-  const response = await emotionAxios.post('/emotion-detection', formData, {
+  const emotionResponse = await emotionAxios.post('/emotion-detection', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }
   });
 
-  return response.data.emotion; // Assuming the API returns an object with an 'emotion' property
+  return emotionResponse.data.emotion; // the API returns an object with an 'emotion' property
 };
-
 // Utility function to get a random element from an array
 const getRandomElement = (array) => {
   return array[Math.floor(Math.random() * array.length)];

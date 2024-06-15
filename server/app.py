@@ -1,14 +1,17 @@
 from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 import os
 import uuid
 import numpy as np
 import cv2
 from keras.models import model_from_json
 from keras.preprocessing.image import img_to_array
+from keras.models import Sequential
 import tensorflow as tf
 
 # Initialize Flask app
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all origins
 
 # Set up paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,16 +19,14 @@ MODELS_DIR = os.path.join(BASE_DIR, 'models')
 DETECTION_MODEL_PATH = os.path.join(MODELS_DIR, 'haarcascade_frontalface_default.xml')
 MODEL_JSON_FILE = os.path.join(MODELS_DIR, 'model.json')
 MODEL_WEIGHTS_FILE = os.path.join(MODELS_DIR, 'model_weights.h5')
-SAVE_DIR = os.path.join(BASE_DIR, 'saved')
+# MODEL_WEIGHTS_FILE = os.path.join(MODELS_DIR, 'model.h5')
+ORIGINAL_SAVE_DIR = os.path.join(BASE_DIR, 'original')
+LABELED_SAVE_DIR = os.path.join(BASE_DIR, 'labeled')
 
-if not os.path.exists(SAVE_DIR):
-    os.makedirs(SAVE_DIR)
-
-# Configure TensorFlow
-config = tf.compat.v1.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction = 0.15
-session = tf.compat.v1.Session(config=config)
-tf.compat.v1.keras.backend.set_session(session)
+if not os.path.exists(ORIGINAL_SAVE_DIR):
+    os.makedirs(ORIGINAL_SAVE_DIR)
+if not os.path.exists(LABELED_SAVE_DIR):
+    os.makedirs(LABELED_SAVE_DIR)
 
 # Load face detection model
 face_detection = cv2.CascadeClassifier(DETECTION_MODEL_PATH)
@@ -33,7 +34,7 @@ face_detection = cv2.CascadeClassifier(DETECTION_MODEL_PATH)
 # Load emotion classification model
 with open(MODEL_JSON_FILE, "r") as json_file:
     loaded_model_json = json_file.read()
-    emotion_classifier = model_from_json(loaded_model_json)
+    emotion_classifier = model_from_json(loaded_model_json, custom_objects={'Sequential': Sequential})
     emotion_classifier.load_weights(MODEL_WEIGHTS_FILE)
 
 # Emotion labels
@@ -50,12 +51,12 @@ def upload_image():
         return jsonify({"error": "No selected file"}), 400
 
     # Generate a unique filename
-    unique_filename = str(uuid.uuid4()) + '.' + file.filename.split('.')[-1]
-    file_path = os.path.join(SAVE_DIR, unique_filename)
-    file.save(file_path)
+    unique_filename = str(uuid.uuid4()) + '.png'
+    original_file_path = os.path.join(ORIGINAL_SAVE_DIR, unique_filename)
+    file.save(original_file_path)
 
     # Read the image
-    image = cv2.imread(file_path)
+    image = cv2.imread(original_file_path)
 
     if image is None:
         return jsonify({"error": "Invalid image file"}), 400
@@ -71,37 +72,38 @@ def upload_image():
     # Process each face detected
     for (fX, fY, fW, fH) in faces:
         face = image[fY:fY + fH, fX:fX + fW]
-        roi = cv2.resize(face, (64, 64))
+        roi = cv2.resize(face, (48, 48))  # Resize to 48x48
         roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
         roi = roi.astype("float") / 255.0
         roi = img_to_array(roi)
         roi = np.expand_dims(roi, axis=0)
 
-        with session.as_default():
-            with session.graph.as_default():
-                preds = emotion_classifier.predict(roi)[0]
-
-        label = EMOTIONS[preds.argmax()]
-        results.append({"face": (fX, fY, fW, fH), "emotion": label})
+        preds = emotion_classifier.predict(roi)[0]
+        label = EMOTIONS[np.argmax(preds)]
+        results.append({"emotion": label})
 
         # Draw label and bounding box on the image
         cv2.putText(image, label, (fX, fY - 10), cv2.FONT_HERSHEY_DUPLEX, 1, (238, 164, 64), 1)
         cv2.rectangle(image, (fX, fY), (fX + fW, fY + fH), (238, 164, 64), 2)
 
-    # Save the labeled image
+    # Save the labeled image in the new directory
     labeled_filename = 'labeled_' + unique_filename
-    labeled_image_path = os.path.join(SAVE_DIR, labeled_filename)
+    labeled_image_path = os.path.join(LABELED_SAVE_DIR, labeled_filename)
     cv2.imwrite(labeled_image_path, image)
 
     return jsonify({
         "results": results,
-        "original_image": os.path.join('saved', unique_filename),
-        "labeled_image": os.path.join('saved', labeled_filename)
+        "original_image": os.path.join('original', unique_filename),
+        "labeled_image": os.path.join('labeled', labeled_filename)
     }), 200
 
-@app.route('/saved/<filename>', methods=['GET'])
-def get_image(filename):
-    return send_from_directory(SAVE_DIR, filename)
+@app.route('/original/<filename>', methods=['GET'])
+def get_original_image(filename):
+    return send_from_directory(ORIGINAL_SAVE_DIR, filename)
+
+@app.route('/labeled/<filename>', methods=['GET'])
+def get_labeled_image(filename):
+    return send_from_directory(LABELED_SAVE_DIR, filename)
 
 if __name__ == '__main__':
     app.run(debug=True)
