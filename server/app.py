@@ -39,7 +39,7 @@ with open(MODEL_JSON_FILE, "r") as json_file:
 # Emotion labels
 EMOTIONS = ["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"]
 
-@app.route('/upload', methods=['POST'])
+@app.route('/emotion-detection', methods=['POST'])
 def upload_image():
     if 'image' not in request.files:
         return jsonify({"error": "No image part in the request"}), 400
@@ -95,8 +95,8 @@ def upload_image():
 
     return jsonify({
         "results": results,
-        "original_image": file_path,
-        "labeled_image": labeled_image_path
+        "original_image": os.path.join('saved', unique_filename),
+        "labeled_image": os.path.join('saved', labeled_filename)
     }), 200
 
 @app.route('/saved/<filename>', methods=['GET'])
