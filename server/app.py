@@ -4,10 +4,8 @@ import os
 import uuid
 import numpy as np
 import cv2
-from keras.models import model_from_json
+from keras.models import load_model
 from keras.preprocessing.image import img_to_array
-from keras.models import Sequential
-import tensorflow as tf
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -17,9 +15,7 @@ CORS(app)  # Enable CORS for all origins
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, 'models')
 DETECTION_MODEL_PATH = os.path.join(MODELS_DIR, 'haarcascade_frontalface_default.xml')
-MODEL_JSON_FILE = os.path.join(MODELS_DIR, 'model.json')
-MODEL_WEIGHTS_FILE = os.path.join(MODELS_DIR, 'model_weights.h5')
-# MODEL_WEIGHTS_FILE = os.path.join(MODELS_DIR, 'model.h5')
+MODEL_WEIGHTS_FILE = os.path.join(MODELS_DIR, 'emotion_model.h5')
 ORIGINAL_SAVE_DIR = os.path.join(BASE_DIR, 'original')
 LABELED_SAVE_DIR = os.path.join(BASE_DIR, 'labeled')
 
@@ -32,10 +28,7 @@ if not os.path.exists(LABELED_SAVE_DIR):
 face_detection = cv2.CascadeClassifier(DETECTION_MODEL_PATH)
 
 # Load emotion classification model
-with open(MODEL_JSON_FILE, "r") as json_file:
-    loaded_model_json = json_file.read()
-    emotion_classifier = model_from_json(loaded_model_json, custom_objects={'Sequential': Sequential})
-    emotion_classifier.load_weights(MODEL_WEIGHTS_FILE)
+emotion_classifier = load_model(MODEL_WEIGHTS_FILE)
 
 # Emotion labels
 EMOTIONS = ["Angry", "Disgust", "Fear", "Happy", "Neutral", "Sad", "Surprise"]
