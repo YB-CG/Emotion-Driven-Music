@@ -1,5 +1,6 @@
 const initialState = {
   recommendations: [],
+  currentEmotion: '',
   fetchRecommendationsPending: false,
   fetchRecommendationsError: null
 };
@@ -15,8 +16,9 @@ const recommendationReducer = (state = initialState, action) => {
     case 'FETCH_RECOMMENDATIONS_SUCCESS':
       return {
         ...state,
+        fetchRecommendationsPending: false,
         recommendations: action.data,
-        fetchRecommendationsPending: false
+        currentEmotion: action.emotion
       };
     case 'FETCH_RECOMMENDATIONS_ERROR':
       return {

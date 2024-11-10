@@ -6,9 +6,10 @@ const fetchRecommendationsPending = () => ({
   type: 'FETCH_RECOMMENDATIONS_PENDING'
 });
 
-const fetchRecommendationsSuccess = data => ({
+const fetchRecommendationsSuccess = (data, emotion) => ({
   type: 'FETCH_RECOMMENDATIONS_SUCCESS',
-  data
+  data,
+  emotion
 });
 
 const fetchRecommendationsError = error => ({
@@ -52,16 +53,22 @@ const detectEmotion = async (imageDataUrl) => {
   const blob = await response.blob();
   formData.append('image', blob, 'image.png');
 
+  console.log('Sending request to emotion detection API...');
   const emotionResponse = await emotionAxios.post('/emotion-detection', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }
   });
 
+  // Extract emotion from the correct path in the response
+  const detectedEmotion = emotionResponse.data.results[0].emotion.toLowerCase();
+  console.log('Emotion API Response:', detectedEmotion);
+  
   // save response in localstorage
-  localStorage.setItem('emotion', emotionResponse.data.emotion);
-  // console.log(emotionResponse.data.emotion);
-  return emotionResponse.data.emotion; // the API returns an object with an 'emotion' property
+  localStorage.setItem('emotion', detectedEmotion);
+  console.log('Emotion saved in localStorage:', localStorage.getItem('emotion'));
+  
+  return detectedEmotion;
 };
 // Utility function to get a random element from an array
 const getRandomElement = (array) => {
@@ -106,7 +113,7 @@ const getRecommendationParams = (emotion) => {
       energy: [0.5, 0.8],
       valence: [0.2, 0.5]
     },
-    fearful: {
+    fear: {
       genres: ['ambient', 'soundtrack', 'minimal'],
       energy: [0.1, 0.3],
       valence: [0.1, 0.3]
@@ -121,17 +128,24 @@ const getRecommendationParams = (emotion) => {
   return { seed_genres, target_energy, target_valence };
 };
 
-// Thunk action to fetch recommendations
+// Updated thunk action to fetch recommendations
 export const fetchRecommendations = () => {
   return async (dispatch, getState) => {
     dispatch(fetchRecommendationsPending());
+    console.log('Starting recommendations fetch...');
 
     const token = getState().sessionReducer.token;
 
     try {
       const imageBlob = await captureImage();
+      console.log('Image captured successfully');
+      
       const emotion = await detectEmotion(imageBlob);
+      console.log('Emotion detected:', emotion);
+      console.log('Current localStorage emotion:', localStorage.getItem('emotion'));
+      
       const { seed_genres, target_energy, target_valence } = getRecommendationParams(emotion);
+      console.log('Recommendation params:', { seed_genres, target_energy, target_valence });
 
       const response = await spotifyAxios.get('/recommendations', {
         headers: {
@@ -144,8 +158,10 @@ export const fetchRecommendations = () => {
         }
       });
 
-      dispatch(fetchRecommendationsSuccess(response.data.tracks));
+      console.log('Recommendations received, dispatching success with emotion:', emotion);
+      dispatch(fetchRecommendationsSuccess(response.data.tracks, emotion));
     } catch (error) {
+      console.error('Error in fetchRecommendations:', error);
       dispatch(fetchRecommendationsError(error));
     }
   };
